@@ -97,6 +97,7 @@ public class EventHubPartitionProcessor implements Runnable {
                 .setTrackLastEnqueuedEventProperties(true));
 
         Long lastSequenceNumber = -1L;
+        String lastOffset = null;
         Instant processingBeginTime = Instant.now();
         Instant minEnqueuedTime = Instant.MAX;
         Instant minRetrievalTime = Instant.MAX;
@@ -143,7 +144,7 @@ public class EventHubPartitionProcessor implements Runnable {
             );
 
             HashCode hash = Hashing.murmur3_128(42) // seed = 42 for Spark compatibility
-                                   .hashString(ricName, StandardCharsets.UTF_8);
+                                   .hashString(rawId, StandardCharsets.UTF_8);
 
             String hashedId = hash.toString();
 
@@ -160,6 +161,7 @@ public class EventHubPartitionProcessor implements Runnable {
             docs.add(json);
 
             lastSequenceNumber = event.getSequenceNumber();
+            lastOffset = event.getOffsetString();
         }
 
         if (docs.size() > 0) {
@@ -210,9 +212,10 @@ public class EventHubPartitionProcessor implements Runnable {
                 this.positionProvider.reportPartitionProgress(
                     this.partitionId,
                     lastSequenceNumber,
+                    lastOffset,
                     maxDurationSinceEnqueued,
                     maxDurationSinceRetrieved);
-                this.eventPosition = EventPosition.fromSequenceNumber(lastSequenceNumber, false);
+                this.eventPosition = EventPosition.fromOffsetString(lastOffset);
             }
         } else {
             logger.debug("No events available for {}/{}", this.consumerGroup, this.partitionId);

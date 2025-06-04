@@ -57,6 +57,7 @@ public class CosmosEventHubPositionProvider {
     public synchronized void reportPartitionProgress(
         String partitionId,
         long lastSequenceNumber,
+        String lastOffset,
         Duration maxDurationSinceEnqueued,
         Duration maxDurationSinceRetrieved) {
 
@@ -70,6 +71,7 @@ public class CosmosEventHubPositionProvider {
                    json.put("id", this.getEncodedId(partitionId));
                    json.put("lastOwnedMachineId", Main.getMachineId());
                    json.put("lastSequenceNumber", lastSequenceNumber);
+                   json.put("lastOffset", lastOffset);
                    json.put("maxTimeSinceEnqueued", maxDurationSinceEnqueued.toString());
                    json.put("maxTimeSinceRetrieved", maxDurationSinceRetrieved.toString());
 
@@ -78,6 +80,7 @@ public class CosmosEventHubPositionProvider {
 
                existingJson.put("lastOwnedMachineId", Main.getMachineId());
                existingJson.put("lastSequenceNumber", lastSequenceNumber);
+               existingJson.put("lastOffset", lastOffset);
                existingJson.put("maxTimeSinceEnqueued", maxDurationSinceEnqueued.toString());
                existingJson.put("maxTimeSinceRetrieved", maxDurationSinceRetrieved.toString());
 
@@ -95,7 +98,7 @@ public class CosmosEventHubPositionProvider {
                 this.eventhubPostions.readItem(encodedId, new PartitionKey(encodedId), ObjectNode.class);
             this.partitionPositions.putIfAbsent(partitionId, rsp.getItem());
 
-            return EventPosition.fromSequenceNumber(Long.parseLong(rsp.getItem().get("lastSequenceNumber").asText()));
+            return EventPosition.fromOffsetString(rsp.getItem().get("lastOffset").asText());
         } catch (CosmosException cosmosError) {
             if (cosmosError.getStatusCode() == 404 && cosmosError.getSubStatusCode() == 0) {
                 return Configs.getEventHubInitialEventPosition();
