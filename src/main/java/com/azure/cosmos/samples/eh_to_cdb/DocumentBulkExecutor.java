@@ -23,15 +23,18 @@ public class DocumentBulkExecutor<T> {
     private final static Logger logger = LoggerFactory.getLogger(DocumentBulkExecutor.class);
     private final CosmosAsyncContainer cosmosAsyncContainer;
     private final Function<T, String> idExtractor;
+    private final Function<T, String> pkExtractor;
 
     public DocumentBulkExecutor(
         CosmosAsyncContainer cosmosAsyncContainer,
-        Function<T, String> idExtractor) {
+        Function<T, String> idExtractor,
+        Function<T, String> pkExtractor) {
 
         Objects.requireNonNull(cosmosAsyncContainer, "Argument 'cosmosAsyncContainer' must not be null.");
         Objects.requireNonNull(idExtractor, "Argument 'idExtractor' must not be null.");
         this.cosmosAsyncContainer = cosmosAsyncContainer;
         this.idExtractor = idExtractor;
+        this.pkExtractor = pkExtractor;
     }
 
     public BulkImportResponse importAll(
@@ -46,9 +49,10 @@ public class DocumentBulkExecutor<T> {
             Stream<CosmosItemOperation> docsToInsert = documents
                 .map(doc -> {
                     String id = this.idExtractor.apply(doc);
+                    String pkValue = this.pkExtractor.apply(doc);
                     return CosmosBulkOperations.getCreateItemOperation(
                         doc,
-                        new PartitionKey(id),
+                        new PartitionKey(pkValue),
                         null,
                         new OperationContext(id, status.getOperationId()));
                 });
@@ -90,9 +94,10 @@ public class DocumentBulkExecutor<T> {
             Stream<CosmosItemOperation> docsToUpsert = documents
                 .map(doc -> {
                     String id = this.idExtractor.apply(doc);
+                    String pkValue = this.pkExtractor.apply(doc);
                     return CosmosBulkOperations.getUpsertItemOperation(
                         doc,
-                        new PartitionKey(id),
+                        new PartitionKey(pkValue),
                         null,
                         new OperationContext(id, status.getOperationId()));
                 });

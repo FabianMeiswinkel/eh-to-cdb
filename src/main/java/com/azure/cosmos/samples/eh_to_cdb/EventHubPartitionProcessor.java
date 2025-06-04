@@ -9,21 +9,28 @@ import com.azure.messaging.eventhubs.EventHubConsumerClient;
 import com.azure.messaging.eventhubs.models.EventPosition;
 import com.azure.messaging.eventhubs.models.LastEnqueuedEventProperties;
 import com.azure.messaging.eventhubs.models.PartitionEvent;
+import com.azure.messaging.eventhubs.models.ReceiveOptions;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.databind.node.TextNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 
 public class EventHubPartitionProcessor implements Runnable {
     private final static Logger logger = LoggerFactory.getLogger(EventHubPartitionProcessor.class);
-    private final static DateTimeFormatter pkDateFormatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+    private final static DateTimeFormatter pkDateFormatter = DateTimeFormatter
+        .BASIC_ISO_DATE
+        .withLocale(Locale.ROOT)
+        .withZone(ZoneId.of("UTC"));
     private final String consumerGroup;
     private final String partitionId;
     private final CosmosEventHubPositionProvider positionProvider;
@@ -49,7 +56,8 @@ public class EventHubPartitionProcessor implements Runnable {
                 .getCosmosAsyncClient(this.userAgentSuffix)
                 .getDatabase(Configs.getSinkDatabaseName())
                 .getContainer(Configs.getSinkCollectionName()),
-            (json) -> json.get("id").asText()
+            (json) -> json.get("id").asText(),
+            (json) -> json.get("pk").asText()
         );
     }
 
@@ -84,12 +92,14 @@ public class EventHubPartitionProcessor implements Runnable {
             partitionId,
             Configs.getEventHubMaxBatchSize(),
             this.eventPosition,
-            Duration.ofMillis(Configs.getEventHubPollingIntervalInMs()));
+            Duration.ofMillis(Configs.getEventHubPollingIntervalInMs()),
+            new ReceiveOptions()
+                .setTrackLastEnqueuedEventProperties(true));
 
         Long lastSequenceNumber = -1L;
         Instant processingBeginTime = Instant.now();
-        Instant minEnqueuedTime = Instant.now();
-        Instant minRetrievalTime = Instant.now();
+        Instant minEnqueuedTime = Instant.MAX;
+        Instant minRetrievalTime = Instant.MAX;
 
         List<ObjectNode> docs = new ArrayList<>();
 
@@ -112,7 +122,8 @@ public class EventHubPartitionProcessor implements Runnable {
                 logger.error("Failed to parse document with MessageId '"
                     + event.getMessageId() + "', CorrelationId '"
                     + event.getCorrelationId() + "' and json '"
-                    + jsonText + "'.");
+                    + jsonText + "'.",
+                    error);
 
                 System.exit(ErrorCodes.CORRUPT_INPUT_JSON);
                 return;
@@ -144,62 +155,67 @@ public class EventHubPartitionProcessor implements Runnable {
 
             json.put("pk", pkValue);
             json.put("id", hashedId);
+            json.putIfAbsent("docType", new TextNode("TAQ"));
 
             docs.add(json);
 
             lastSequenceNumber = event.getSequenceNumber();
         }
 
-        DocumentBulkExecutorOperationStatus status = new DocumentBulkExecutorOperationStatus();
-        BulkImportResponse importResponse = this.bulkExecutor.upsertAll(
-            docs.stream(),
-            status,
-            false);
+        if (docs.size() > 0) {
+            DocumentBulkExecutorOperationStatus status = new DocumentBulkExecutorOperationStatus();
+            BulkImportResponse importResponse = this.bulkExecutor.upsertAll(
+                docs.stream(),
+                status,
+                false);
 
-        if (importResponse.getFailedImports() != null && importResponse.getFailedImports().size() > 0) {
-            for (BulkImportFailure failure : importResponse.getFailedImports()) {
-                logger.error("CRITICAL bulk import failure", failure.getBulkImportFailureException());
-                for (String doc : failure.getDocumentsFailedToImport()) {
-                    logger.error(doc);
+            if (importResponse.getFailedImports() != null && importResponse.getFailedImports().size() > 0) {
+                for (BulkImportFailure failure : importResponse.getFailedImports()) {
+                    logger.error("CRITICAL bulk import failure", failure.getBulkImportFailureException());
+                    for (String doc : failure.getDocumentsFailedToImport()) {
+                        logger.error(doc);
+                    }
                 }
+
+                System.exit(ErrorCodes.CRITICAL_BULK_FAILURE);
+                return;
             }
 
-            System.exit(ErrorCodes.CRITICAL_BULK_FAILURE);
-            return;
-        }
+            if (importResponse.getNumberOfDocumentsImported() != docs.size()) {
+                logger.error(
+                    "CRITICAL bulk import failure - only {} of {} docs were processed.",
+                    importResponse.getNumberOfDocumentsImported(),
+                    docs.size());
 
-        if (importResponse.getNumberOfDocumentsImported() != docs.size()) {
-            logger.error(
-                "CRITICAL bulk import failure - only {} of {} docs were processed.",
+                System.exit(ErrorCodes.CRITICAL_BULK_FAILURE);
+                return;
+            }
+
+            Instant nowSnapshot = Instant.now();
+            Duration maxDurationSinceEnqueued = Duration.between(minEnqueuedTime, nowSnapshot);
+            Duration maxDurationSinceRetrieved = Duration.between(minRetrievalTime, nowSnapshot);
+            logger.info(
+                "Import of {} documents finished. Ingestion duration: {}, Total RU: {}, Max. "
+                    + "time since enqueued: {}, Max. time since retrieved: {}",
                 importResponse.getNumberOfDocumentsImported(),
-                docs.size());
-
-            System.exit(ErrorCodes.CRITICAL_BULK_FAILURE);
-            return;
-        }
-
-        Instant nowSnapshot = Instant.now();
-        Duration maxDurationSinceEnqueued = Duration.between(minEnqueuedTime, nowSnapshot);
-        Duration maxDurationSinceRetrieved = Duration.between(minRetrievalTime, nowSnapshot);
-        logger.info(
-            "Import of {} documents finished. Ingestion duration: {}, Total RU: {}, Max. "
-            + "time since enqueued: {}, Max. time since retrieved: {}",
-            importResponse.getNumberOfDocumentsImported(),
-            importResponse.getTotalTimeTaken(),
-            importResponse.getTotalRequestUnitsConsumed(),
-            maxDurationSinceEnqueued,
-            maxDurationSinceRetrieved);
-
-        // Figure out what the next EventPosition to receive from is based on last event we processed in the stream.
-        // If lastSequenceNumber is -1L, then we didn't see any events the first time we fetched events from the
-        // partition.
-        if (lastSequenceNumber != -1L) {
-            this.positionProvider.reportPartitionProgress(
-                this.partitionId,
-                lastSequenceNumber,
+                importResponse.getTotalTimeTaken(),
+                importResponse.getTotalRequestUnitsConsumed(),
                 maxDurationSinceEnqueued,
                 maxDurationSinceRetrieved);
-            this.eventPosition = EventPosition.fromSequenceNumber(lastSequenceNumber, false);
+
+            // Figure out what the next EventPosition to receive from is based on last event we processed in the stream.
+            // If lastSequenceNumber is -1L, then we didn't see any events the first time we fetched events from the
+            // partition.
+            if (lastSequenceNumber != -1L) {
+                this.positionProvider.reportPartitionProgress(
+                    this.partitionId,
+                    lastSequenceNumber,
+                    maxDurationSinceEnqueued,
+                    maxDurationSinceRetrieved);
+                this.eventPosition = EventPosition.fromSequenceNumber(lastSequenceNumber, false);
+            }
+        } else {
+            logger.debug("No events available for {}/{}", this.consumerGroup, this.partitionId);
         }
     }
 }

@@ -5,6 +5,7 @@ package com.azure.cosmos.samples.eh_to_cdb;
 import com.azure.core.amqp.AmqpRetryOptions;
 import com.azure.core.credential.TokenCredential;
 import com.azure.core.util.ClientOptions;
+import com.azure.core.util.TracingOptions;
 import com.azure.cosmos.ConnectionMode;
 import com.azure.cosmos.ConsistencyLevel;
 import com.azure.cosmos.CosmosAsyncClient;
@@ -193,7 +194,8 @@ public class Configs {
                 Configs.getEventHubNamespace(),
                 Configs.getEventHubName(),
                 credential)
-            .clientOptions(new ClientOptions().setApplicationId("EH-to-CDB_" + Main.getMachineId()))
+            .clientOptions(new ClientOptions()
+                .setApplicationId("EH-to-CDB_" + Main.getMachineId()))
             .consumerGroup(consumerGroup)
             .prefetchCount(Configs.getEventHubPrefetchCount())
             .retryOptions(new AmqpRetryOptions().setMaxRetries(Configs.getMaxRetryCount()));
@@ -269,21 +271,21 @@ public class Configs {
     public static int getEventHubMaxBatchSize() {
         return getOptionalConfigProperty(
             "EVENTHUB_MAX_BATCH_SIZE",
-            100_000,
+            5_000,
             v -> Integer.parseInt(v));
     }
 
     public static int getEventHubPollingIntervalInMs() {
         return getOptionalConfigProperty(
             "EVENTHUB_POLLING_INTERVAL_MS",
-            100,
+            250,
             v -> Integer.parseInt(v));
     }
 
     public static int getEventHubPrefetchCount() {
         return getOptionalConfigProperty(
             "EVENTHUB_PREFETCH_COUNT",
-            1_000_000,
+            7_999,
             v -> Integer.parseInt(v));
     }
 

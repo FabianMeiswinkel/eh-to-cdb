@@ -135,7 +135,7 @@ public class Main {
             .getPartitionKeyDefinition();
 
         if (pkDef.getPaths().size() != 1
-            || expectedPKDef.equalsIgnoreCase(pkDef.getPaths().get(0))) {
+            || !expectedPKDef.equalsIgnoreCase(pkDef.getPaths().get(0))) {
 
             logger.error(
                 "The collection {} must be partitioned by '{}'",
@@ -209,7 +209,8 @@ public class Main {
     private static void printHelp(String[] args) {
         String msg = "Invalid command line parameters '"
             + String.join(" ", args)
-            + "'. Instead pass all partitionIds to be processed separated by '#'.";
+            + "'. Instead pass <Consumer_Group> <Partitions> - where <Partitions> is a string value concatenating all "
+            + "partitionIds to be processed separated by '#'.";
 
         System.out.println(msg);
         logger.error(msg);
