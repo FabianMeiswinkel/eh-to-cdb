@@ -256,13 +256,13 @@ public class Configs {
 
     public static String getSinkDatabaseName() {
         return getRequiredConfigProperty(
-            "COSMOS_SINK_DB",
+            "SINK_DB",
             v -> v);
     }
 
     public static String getSinkCollectionName() {
         return getRequiredConfigProperty(
-            "COSMOS_SINK_COLLECTION",
+            "SINK_COLLECTION",
             v -> v);
     }
 
@@ -282,7 +282,7 @@ public class Configs {
 
     public static int getEventHubPrefetchCount() {
         return getOptionalConfigProperty(
-            "EVENTHUB_PREFIX_COUNT",
+            "EVENTHUB_PREFETCH_COUNT",
             1_000_000,
             v -> Integer.parseInt(v));
     }

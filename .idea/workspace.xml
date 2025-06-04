@@ -7,23 +7,24 @@
     <list default="true" id="1fdf047a-0e3a-40bd-9cde-fd9818135950" name="Changes" comment="">
       <change afterPath="$PROJECT_DIR$/.idea/encodings.xml" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/.idea/uiDesigner.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/src/main/java/com/azure/cosmos/samples/eh_to_cdb/BulkImportFailure.java" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/src/main/java/com/azure/cosmos/samples/eh_to_cdb/BulkImportResponse.java" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/src/main/java/com/azure/cosmos/samples/eh_to_cdb/BulkWriter.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/azure/cosmos/samples/eh_to_cdb/Configs.java" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/src/main/java/com/azure/cosmos/samples/eh_to_cdb/CosmosDaemonThreadFactory.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/azure/cosmos/samples/eh_to_cdb/CosmosEventHubPositionProvider.java" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/src/main/java/com/azure/cosmos/samples/eh_to_cdb/DocumentBulkExecutor.java" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/src/main/java/com/azure/cosmos/samples/eh_to_cdb/DocumentBulkExecutorOperationStatus.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/azure/cosmos/samples/eh_to_cdb/ErrorCodes.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/azure/cosmos/samples/eh_to_cdb/EventHubPartitionProcessor.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/azure/cosmos/samples/eh_to_cdb/Main.java" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/src/main/java/com/azure/cosmos/samples/eh_to_cdb/OperationContext.java" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/src/main/java/com/azure/cosmos/samples/eh_to_cdb/SamplingCosmosDiagnosticsLogger.java" afterDir="false" />
       <change afterPath="$PROJECT_DIR$/src/main/java/com/azure/cosmos/samples/eh_to_cdb/UUIDs.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/azure/cosmos/samples/eh_to_cdb/Configs.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/azure/cosmos/samples/eh_to_cdb/Configs.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/azure/cosmos/samples/eh_to_cdb/CosmosEventHubPositionProvider.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/azure/cosmos/samples/eh_to_cdb/CosmosEventHubPositionProvider.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/azure/cosmos/samples/eh_to_cdb/ErrorCodes.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/azure/cosmos/samples/eh_to_cdb/ErrorCodes.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/azure/cosmos/samples/eh_to_cdb/EventHubPartitionProcessor.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/azure/cosmos/samples/eh_to_cdb/EventHubPartitionProcessor.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/azure/cosmos/samples/eh_to_cdb/Main.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/azure/cosmos/samples/eh_to_cdb/Main.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

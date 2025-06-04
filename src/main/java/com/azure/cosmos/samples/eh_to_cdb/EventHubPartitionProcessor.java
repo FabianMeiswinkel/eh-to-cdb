@@ -1,6 +1,7 @@
 package com.azure.cosmos.samples.eh_to_cdb;
 
 import com.azure.core.util.IterableStream;
+import com.azure.cosmos.CosmosContainer;
 import com.azure.cosmos.implementation.guava25.hash.HashCode;
 import com.azure.cosmos.implementation.guava25.hash.Hashing;
 import com.azure.messaging.eventhubs.EventData;
@@ -32,13 +33,14 @@ public class EventHubPartitionProcessor implements Runnable {
 
 
     private EventPosition eventPosition;
-    public EventHubPartitionProcessor(String consumerGroup, String partitionId) {
+    public EventHubPartitionProcessor(String consumerGroup, String partitionId, CosmosContainer positionsContainer) {
         Objects.requireNonNull(consumerGroup, "Argument 'consumerGroup' must not be null.");
         Objects.requireNonNull(partitionId, "Argument 'partitionId' must not be null.");
+        Objects.requireNonNull(positionsContainer, "Argument 'positionsContainer' must not be null.");
 
         this.consumerGroup = consumerGroup;
         this.partitionId = partitionId;
-        this.positionProvider = new CosmosEventHubPositionProvider(consumerGroup);
+        this.positionProvider = new CosmosEventHubPositionProvider(consumerGroup, positionsContainer);
         this.eventPosition = this.positionProvider.getStartPosition(partitionId);
         this.eventHubClient = Configs.getEventHubClient(consumerGroup);
         this.userAgentSuffix = "EH-Processor_" + consumerGroup + "_" + partitionId;
@@ -126,7 +128,6 @@ public class EventHubPartitionProcessor implements Runnable {
                 ricName,
                 String.valueOf(messageTimestamp),
                 String.valueOf(executionTime),
-                String.valueOf(msgSequence),
                 String.valueOf(recordKey)
             );
 
@@ -140,7 +141,6 @@ public class EventHubPartitionProcessor implements Runnable {
                 ricName,
                 pkDateFormatter.format(nanoEpochToInstant(messageTimestamp)),
                 String.valueOf((Math.abs(hash.asLong()) % 8) + 1));
-
 
             json.put("pk", pkValue);
             json.put("id", hashedId);

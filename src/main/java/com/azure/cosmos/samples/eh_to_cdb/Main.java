@@ -2,7 +2,10 @@
 // Licensed under the MIT License.
 package com.azure.cosmos.samples.eh_to_cdb;
 
-import com.azure.cosmos.CosmosClient;
+import com.azure.cosmos.CosmosContainer;
+import com.azure.cosmos.CosmosException;
+import com.azure.cosmos.models.CosmosContainerResponse;
+import com.azure.cosmos.models.PartitionKeyDefinition;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,11 +17,13 @@ import java.net.InetAddress;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.Scanner;
 import java.util.stream.Collectors;
 
 public class Main {
     private final static Logger logger = LoggerFactory.getLogger(Main.class);
+    private final static Random rnd = new Random();
     private static String machineId;
 
     public static String getMachineId() {
@@ -98,6 +103,49 @@ public class Main {
         return partitionIds.stream().distinct().collect(Collectors.toList());
     }
 
+    private static void validateContainer(CosmosContainer container, String expectedPKDef) {
+        // Simple validation that the container exists and is configured appropriately
+        CosmosContainerResponse rsp;
+        int retryCount = 0;
+        while (true) {
+            try {
+                rsp = container.read();
+                break;
+            } catch (CosmosException cosmosError) {
+                logger.error("Error validating container {}", container.getId(), cosmosError);
+
+                if (++retryCount > 100) {
+                    logger.error(
+                        "Container {} cannot be validated.",
+                        container.getId(),
+                        cosmosError);
+                    System.exit(ErrorCodes.INVALID_CONTAINER_DEFINITION);
+                    return;
+                }
+
+                try {
+                    Thread.sleep(rnd.nextInt(5000));
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+        PartitionKeyDefinition pkDef = rsp
+            .getProperties()
+            .getPartitionKeyDefinition();
+
+        if (pkDef.getPaths().size() != 1
+            || expectedPKDef.equalsIgnoreCase(pkDef.getPaths().get(0))) {
+
+            logger.error(
+                "The collection {} must be partitioned by '{}'",
+                container.getId(),
+                expectedPKDef);
+
+            System.exit(ErrorCodes.INVALID_CONTAINER_DEFINITION);
+        }
+    }
+
     public static void main(String[] args) {
         logger.info("Command arguments: {}", String.join(", ", args));
 
@@ -112,12 +160,26 @@ public class Main {
                 return;
             }
 
+            CosmosContainer sinkContainer = Configs
+                .getCosmosClient("ContainerValidation-" + machineId)
+                .getDatabase(Configs.getSinkDatabaseName())
+                .getContainer(Configs.getSinkCollectionName());
+            validateContainer(sinkContainer, "/pk");
+
+            CosmosContainer positionsContainer = Configs
+                .getCosmosClient("EHPos")
+                .getDatabase(Configs.getEventHubPositionDatabaseName())
+                .getContainer(Configs.getEventHubPositionCollectionName());
+            validateContainer(positionsContainer, "/id");
+
             String consumerGroup = args[0];
 
             CosmosDaemonThreadFactory threadFactory = new CosmosDaemonThreadFactory("EHProc-");
             for (String partitionId : partitionIds) {
                 EventHubPartitionProcessor processor = new EventHubPartitionProcessor(
-                    consumerGroup, partitionId
+                    consumerGroup,
+                    partitionId,
+                    positionsContainer
                 );
 
                 threadFactory.newThread(processor, "partitionId").start();

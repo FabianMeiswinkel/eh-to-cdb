@@ -34,29 +34,15 @@ public class CosmosEventHubPositionProvider {
 
     private final ScheduledExecutorService executor;
 
-    public CosmosEventHubPositionProvider(String consumerGroup) {
+    public CosmosEventHubPositionProvider(String consumerGroup, CosmosContainer positionsContainer) {
         Objects.requireNonNull(consumerGroup, "Argument 'consumerGroup' must not be null.");
+        Objects.requireNonNull(positionsContainer, "Argument 'positionsContainer' must not be null.");
 
         this.partitionPositions = new ConcurrentHashMap<>(16);
         this.partitionsToReport = new AtomicReference(ConcurrentHashMap.newKeySet(16));
 
         this.consumerGroup = consumerGroup;
-        this.eventhubPostions = Configs
-            .getCosmosClient("EHPos")
-            .getDatabase(Configs.getEventHubPositionDatabaseName())
-            .getContainer(Configs.getEventHubPositionCollectionName());
-
-        // Simple validation that the container exists and is configured appropriately
-        CosmosContainerResponse rsp = this.eventhubPostions.read();
-        PartitionKeyDefinition pkDef = rsp
-            .getProperties()
-            .getPartitionKeyDefinition();
-        if (pkDef.getPaths().size() != 1
-            || "/id".equalsIgnoreCase(pkDef.getPaths().get(0))) {
-
-            throw new IllegalStateException("The collection used to store eventhub positions must be "
-                + "partitioned by '/id'");
-        }
+        this.eventhubPostions = positionsContainer;
 
         executor = Executors.newSingleThreadScheduledExecutor(
             new CosmosDaemonThreadFactory("EH-to-CDB_logSampling"));
