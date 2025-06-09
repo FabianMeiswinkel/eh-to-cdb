@@ -185,20 +185,28 @@ public class Main {
                 threadFactory.newThread(processor, "partitionId").start();
             }
 
-            Scanner scanner = new Scanner(System.in);
-            System.out.println("Press 'q' to exit.");
+            boolean isAppRunningInConsoleMode = Configs.isAppRunningInConsoleMode();
 
-            while (true) {
-                String input = scanner.nextLine(); // Read user input
-                if ("q".equalsIgnoreCase(input)) { // Check if input is 'q' (case-insensitive)
-                    System.out.println("Exiting program...");
-                    break; // Exit the loop
-                } else {
-                    System.out.println("You entered: " + input + ". Press 'q' to exit.");
+            if (isAppRunningInConsoleMode) {
+
+                Scanner scanner = new Scanner(System.in);
+                System.out.println("Press 'q' to exit.");
+
+                while (true) {
+                    String input = scanner.nextLine(); // Read user input
+                    if ("q".equalsIgnoreCase(input)) { // Check if input is 'q' (case-insensitive)
+                        System.out.println("Exiting program...");
+                        break; // Exit the loop
+                    } else {
+                        System.out.println("You entered: " + input + ". Press 'q' to exit.");
+                    }
                 }
+                scanner.close(); // Close the scanner
+                System.exit(ErrorCodes.SUCCESS);
+            } else {
+                while (true) {}
             }
-            scanner.close(); // Close the scanner
-            System.exit(ErrorCodes.SUCCESS);
+
         } catch (Throwable error) {
             logger.error("FAILURE: {}", error.getMessage(), error);
         }
