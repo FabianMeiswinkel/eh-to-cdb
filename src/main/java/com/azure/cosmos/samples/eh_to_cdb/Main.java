@@ -214,8 +214,10 @@ public class Main {
                             waitObject.wait(60_000);
                         } catch (InterruptedException e) {
                             logger.warn("Main thread interrupted: {}", e.getMessage(), e);
+                            throw e;
                         } catch (IllegalMonitorStateException e) {
                             logger.error("Illegal monitor state: {}", e.getMessage(), e);
+                            throw e;
                         }
                     }
                 }
