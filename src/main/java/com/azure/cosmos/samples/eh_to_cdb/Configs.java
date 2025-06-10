@@ -368,6 +368,12 @@ public class Configs {
             v -> Integer.parseInt(v));
     }
 
+    public static boolean isAppRunningInConsoleMode() {
+        return getRequiredConfigProperty(
+          "IS_CONSOLE_RUN_MODE",
+          v -> Boolean.parseBoolean(v));
+    }
+
     public static String getAadManagedIdentityId() {
         return getOptionalConfigProperty("AAD_MANAGED_IDENTITY_ID", null, v -> v);
     }

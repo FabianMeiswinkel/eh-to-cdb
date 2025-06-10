@@ -17,6 +17,7 @@ import java.net.InetAddress;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 import java.util.Scanner;
 import java.util.stream.Collectors;
@@ -147,6 +148,9 @@ public class Main {
     }
 
     public static void main(String[] args) {
+
+        Object waitObject = new Object();
+
         logger.info("Command arguments: {}", String.join(", ", args));
 
         machineId = computeMachineId(args);
@@ -185,20 +189,40 @@ public class Main {
                 threadFactory.newThread(processor, "partitionId").start();
             }
 
-            Scanner scanner = new Scanner(System.in);
-            System.out.println("Press 'q' to exit.");
+            boolean isAppRunningInConsoleMode = Configs.isAppRunningInConsoleMode();
 
-            while (true) {
-                String input = scanner.nextLine(); // Read user input
-                if ("q".equalsIgnoreCase(input)) { // Check if input is 'q' (case-insensitive)
-                    System.out.println("Exiting program...");
-                    break; // Exit the loop
-                } else {
-                    System.out.println("You entered: " + input + ". Press 'q' to exit.");
+            if (isAppRunningInConsoleMode) {
+
+                Scanner scanner = new Scanner(System.in);
+                System.out.println("Press 'q' to exit.");
+
+                while (true) {
+                    String input = scanner.nextLine(); // Read user input
+                    if ("q".equalsIgnoreCase(input)) { // Check if input is 'q' (case-insensitive)
+                        System.out.println("Exiting program...");
+                        break; // Exit the loop
+                    } else {
+                        System.out.println("You entered: " + input + ". Press 'q' to exit.");
+                    }
+                }
+                scanner.close(); // Close the scanner
+                System.exit(ErrorCodes.SUCCESS);
+            } else {
+                while (true) {
+                    synchronized (Main.class) {
+                        try {
+                            waitObject.wait(60_000);
+                        } catch (InterruptedException e) {
+                            logger.warn("Main thread interrupted: {}", e.getMessage(), e);
+                            throw e;
+                        } catch (IllegalMonitorStateException e) {
+                            logger.error("Illegal monitor state: {}", e.getMessage(), e);
+                            throw e;
+                        }
+                    }
                 }
             }
-            scanner.close(); // Close the scanner
-            System.exit(ErrorCodes.SUCCESS);
+
         } catch (Throwable error) {
             logger.error("FAILURE: {}", error.getMessage(), error);
         }
