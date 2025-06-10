@@ -26,7 +26,6 @@ public class Main {
     private final static Logger logger = LoggerFactory.getLogger(Main.class);
     private final static Random rnd = new Random();
     private static String machineId;
-    private static final Object monitor = new Object();
 
     public static String getMachineId() {
         return machineId;
@@ -150,7 +149,7 @@ public class Main {
 
     public static void main(String[] args) {
 
-        Object wait = new Object();
+        Object waitObject = new Object();
 
         logger.info("Command arguments: {}", String.join(", ", args));
 
@@ -210,8 +209,14 @@ public class Main {
                 System.exit(ErrorCodes.SUCCESS);
             } else {
                 while (true) {
-                    synchronized (monitor) {
-                        wait.wait(60_000); // Keep the main thread alive
+                    synchronized (Main.class) {
+                        try {
+                            waitObject.wait(60_000);
+                        } catch (InterruptedException e) {
+                            logger.warn("Main thread interrupted: {}", e.getMessage(), e);
+                        } catch (IllegalMonitorStateException e) {
+                            logger.error("Illegal monitor state: {}", e.getMessage(), e);
+                        }
                     }
                 }
             }
