@@ -208,21 +208,18 @@ public class Main {
                 scanner.close(); // Close the scanner
                 System.exit(ErrorCodes.SUCCESS);
             } else {
-                while (true) {
-                    synchronized (Main.class) {
-                        try {
-                            waitObject.wait(60_000);
-                        } catch (InterruptedException e) {
-                            logger.warn("Main thread interrupted: {}", e.getMessage(), e);
-                            throw e;
-                        } catch (IllegalMonitorStateException e) {
-                            logger.error("Illegal monitor state: {}", e.getMessage(), e);
-                            throw e;
-                        }
+                synchronized (waitObject) {
+                    try {
+                        waitObject.wait();
+                    } catch (InterruptedException e) {
+                        logger.warn("Main thread interrupted: {}", e.getMessage(), e);
+                        throw e;
+                    } catch (IllegalMonitorStateException e) {
+                        logger.error("Illegal monitor state: {}", e.getMessage(), e);
+                        throw e;
                     }
                 }
             }
-
         } catch (Throwable error) {
             logger.error("FAILURE: {}", error.getMessage(), error);
         }
