@@ -17,6 +17,7 @@ import java.net.InetAddress;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Random;
 import java.util.Scanner;
 import java.util.stream.Collectors;
@@ -25,6 +26,7 @@ public class Main {
     private final static Logger logger = LoggerFactory.getLogger(Main.class);
     private final static Random rnd = new Random();
     private static String machineId;
+    private static final Object monitor = new Object();
 
     public static String getMachineId() {
         return machineId;
@@ -147,6 +149,9 @@ public class Main {
     }
 
     public static void main(String[] args) {
+
+        Object wait = new Object();
+
         logger.info("Command arguments: {}", String.join(", ", args));
 
         machineId = computeMachineId(args);
@@ -204,7 +209,11 @@ public class Main {
                 scanner.close(); // Close the scanner
                 System.exit(ErrorCodes.SUCCESS);
             } else {
-                while (true) {}
+                while (true) {
+                    synchronized (monitor) {
+                        wait.wait(60_000); // Keep the main thread alive
+                    }
+                }
             }
 
         } catch (Throwable error) {
