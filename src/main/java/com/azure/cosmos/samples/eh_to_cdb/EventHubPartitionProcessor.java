@@ -28,7 +28,7 @@ import java.util.Objects;
 public class EventHubPartitionProcessor implements Runnable {
     private final static Logger logger = LoggerFactory.getLogger(EventHubPartitionProcessor.class);
     private final static DateTimeFormatter pkDateFormatter = DateTimeFormatter
-        .BASIC_ISO_DATE
+        .ofPattern("yyyyMMdd")
         .withLocale(Locale.ROOT)
         .withZone(ZoneId.of("UTC"));
     private final String consumerGroup;
