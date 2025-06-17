@@ -37,6 +37,7 @@ public class EventHubPartitionProcessor implements Runnable {
     private final EventHubConsumerClient eventHubClient;
     private final DocumentBulkExecutor<ObjectNode> bulkExecutor;
     private final String userAgentSuffix;
+    private volatile boolean logEventHubConfig = true;
 
 
     private EventPosition eventPosition;
@@ -88,6 +89,12 @@ public class EventHubPartitionProcessor implements Runnable {
     }
 
     private void runCore() {
+
+        if (this.logEventHubConfig) {
+            logger.info("Processing events for {}/{} with EventPosition: {} : batch size {} : polling interval {}", partitionId, consumerGroup, eventPosition, Configs.getEventHubMaxBatchSize(), Duration.ofMillis(Configs.getEventHubPollingIntervalInMs()));
+            this.logEventHubConfig = false;
+        }
+
         IterableStream<PartitionEvent> events = this.eventHubClient.receiveFromPartition(
             partitionId,
             Configs.getEventHubMaxBatchSize(),
@@ -197,9 +204,10 @@ public class EventHubPartitionProcessor implements Runnable {
             Duration maxDurationSinceEnqueued = Duration.between(minEnqueuedTime, nowSnapshot);
             Duration maxDurationSinceRetrieved = Duration.between(minRetrievalTime, nowSnapshot);
             logger.info(
-                "Import of {} documents finished. Ingestion duration: {}, Total RU: {}, Max. "
+                "Import of {} documents finished from EventHub partition {} finished. Ingestion duration: {}, Total RU: {}, Max. "
                     + "time since enqueued: {}, Max. time since retrieved: {}",
                 importResponse.getNumberOfDocumentsImported(),
+                this.partitionId,
                 importResponse.getTotalTimeTaken(),
                 importResponse.getTotalRequestUnitsConsumed(),
                 maxDurationSinceEnqueued,
