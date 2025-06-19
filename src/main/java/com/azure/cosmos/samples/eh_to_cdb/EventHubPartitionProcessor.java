@@ -6,6 +6,7 @@ import com.azure.messaging.eventhubs.models.EventPosition;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Sinks;
 
 import java.time.Duration;
@@ -88,9 +89,17 @@ public class EventHubPartitionProcessor implements Runnable {
         EventHubPartitionReader reader = new EventHubPartitionReader(this.eventHubClient, state, ehRecordsSink);
         Future<?> readFuture = readerExecutor.submit(reader);
 
+        Flux<ObjectNode> originalFlux = ehRecordsSink.asFlux();
+        Flux<ObjectNode> loggingEnabledFlux = originalFlux
+            .doOnSubscribe(s -> logger.info("Starting to enqueue EventHub records of current batch for Partition '" + partitionId + "'."))
+            .doOnComplete(() -> {
+                logger.info("Finished enqueueing EventHub records of current batch for Partition '" + partitionId + "'.");
+            })
+            .doOnError(t -> logger.error("Flux reading from EventHub partition '" + partitionId + "' failed.", t));
+
         DocumentBulkExecutorOperationStatus status = new DocumentBulkExecutorOperationStatus();
         BulkImportResponse importResponse = this.bulkExecutor.upsertAll(
-            ehRecordsSink.asFlux().toStream(),
+            loggingEnabledFlux.toStream(),
             status,
             false);
 

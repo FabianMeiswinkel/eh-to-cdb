@@ -61,5 +61,6 @@ public class EventHubPartitionProcessorState {
     public void updateOffsetAndSequenceNumber(Long sequenceNumber, String offset) {
         this.lastSequenceNumber = sequenceNumber;
         this.lastOffset = offset;
+        this.eventPosition = EventPosition.fromOffsetString(lastOffset);
     }
 }

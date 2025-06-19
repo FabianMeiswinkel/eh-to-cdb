@@ -150,25 +150,21 @@ class BulkWriter implements AutoCloseable {
             this.identifier,
             result.name());
 
-        try {
-            this.bulkWriterInputBoundedElastic.dispose();
-        } catch (Throwable t) {
-            logger.info(
-                "Failed to dispose bulkWriterInputBoundedElastic of batch [{}}].",
-                this.identifier,
-                t);
-        }
-
-        try {
-            this.bulkWriterResponsesBoundedElastic.dispose();
-        } catch (Throwable t) {
-            logger.info(
-                "Failed to dispose bulkWriterResponsesBoundedElastic of batch [{}}].",
-                this.identifier,
-                t);
-        }
-
         this.status.clearPendingOperations();
+    }
+
+    public void complete() {
+        try {
+            Sinks.EmitResult result = this.bulkInputEmitter.tryEmitComplete();
+            logger.info("Complete - tryEmitComplete {}", result);
+        } catch (Throwable t) {
+            logger.info(
+                "Failed to complete input emitter for batch [{}}].",
+                this.identifier,
+                t);
+
+            throw t;
+        }
     }
 
     private void scheduleRetry(
@@ -517,7 +513,7 @@ class BulkWriter implements AutoCloseable {
         long completedCountSnapshot;
         synchronized (this.status.getLockObject()) {
             if (!this.status.getPendingOperations().remove(ctx.getId())) {
-                logger.warn(
+                logger.debug(
                     "No pending operation found for item Batch [{}], ID: [{}], PK: [{}]",
                     ctx.getIdentifier(),
                     ctx.getId(),

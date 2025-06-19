@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -118,17 +119,22 @@ public class DocumentBulkExecutor<T> {
             this.cosmosAsyncContainer,
             status)) {
 
+            AtomicInteger enqueuedDocCount = new AtomicInteger(0);
             if (shouldDedupe) {
                 dedupeOperations(operations, status)
                     .forEach(writer::scheduleWrite);
             } else {
                 operations
-                    .forEach(writer::scheduleWrite);
+                    .forEach(op -> {
+                        enqueuedDocCount.incrementAndGet();
+                        writer.scheduleWrite(op);
+                    });
             }
 
             logger.info("All items of batch {} scheduled.", status.getOperationId());
             writer.flush();
 
+            logger.info("All {} items of batch {} flushed.", enqueuedDocCount, status.getOperationId());
             List<Object> badInputDocs = status.getBadInputDocumentsSnapshot();
             List<BulkImportFailure> failures = status.getFailuresSnapshot();
 
@@ -141,13 +147,17 @@ public class DocumentBulkExecutor<T> {
                 badInputDocs != null ? badInputDocs.size() : 0,
                 failures != null ? failures.size() : 0);
 
-            return new BulkImportResponse(
-                (int)status.getOperationsCompleted().get(),
+            BulkImportResponse response = new BulkImportResponse(
+                (int) status.getOperationsCompleted().get(),
                 status.getTotalRequestChargeSnapshot(),
                 Duration.between(startTime, Instant.now()),
                 new ArrayList<>(),
                 badInputDocs,
                 failures);
+
+            writer.complete();
+
+            return response;
         }
     }
 
