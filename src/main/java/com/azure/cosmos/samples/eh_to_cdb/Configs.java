@@ -374,6 +374,12 @@ public class Configs {
           v -> Boolean.parseBoolean(v));
     }
 
+    public static boolean isEventHubGzipCompressionEnabled() {
+        return getRequiredConfigProperty(
+            "IS_EVENTHUB_GZIP_COMPRESSION_ENABLED",
+            v -> Boolean.parseBoolean(v));
+    }
+
     public static String getAadManagedIdentityId() {
         return getOptionalConfigProperty("AAD_MANAGED_IDENTITY_ID", null, v -> v);
     }

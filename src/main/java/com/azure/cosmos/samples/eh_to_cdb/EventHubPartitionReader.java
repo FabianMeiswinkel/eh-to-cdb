@@ -14,6 +14,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Sinks;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -21,6 +24,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.zip.GZIPInputStream;
 
 public class EventHubPartitionReader implements Runnable {
     private final static Logger logger = LoggerFactory.getLogger(EventHubPartitionReader.class);
@@ -29,7 +33,9 @@ public class EventHubPartitionReader implements Runnable {
         .withLocale(Locale.ROOT)
         .withZone(ZoneId.of("UTC"));
 
-    private static final Sinks.EmitFailureHandler emitFailureHandler =
+    private final static boolean isGzipCompressionEnabled = Configs.isEventHubGzipCompressionEnabled();
+
+    private final static Sinks.EmitFailureHandler emitFailureHandler =
         (signalType, emitResult) -> {
             if (emitResult.equals(Sinks.EmitResult.FAIL_NON_SERIALIZED)) {
                 logger.debug("emitFailureHandler - Signal: [{}], Result: [{}]", signalType, emitResult);
@@ -96,7 +102,36 @@ public class EventHubPartitionReader implements Runnable {
                     lastEnqueuedProperties.getRetrievalTime());
 
                 EventData event = partitionEvent.getData();
-                String jsonText = event.getBodyAsString();
+                byte[] bodyPayloadCompressed = event.getBody();
+                String jsonText;
+
+                if (isGzipCompressionEnabled) {
+
+                    try (
+                        ByteArrayInputStream byteStream = new ByteArrayInputStream(bodyPayloadCompressed);
+                        GZIPInputStream gzipStream = new GZIPInputStream(byteStream);
+                        ByteArrayOutputStream out = new ByteArrayOutputStream()
+                    ) {
+                        byte[] buffer = new byte[1024];
+                        int len;
+                        while ((len = gzipStream.read(buffer)) > 0) {
+                            out.write(buffer, 0, len);
+                        }
+
+                        jsonText = new String(out.toByteArray(), StandardCharsets.UTF_8);
+                    } catch (IOException e) {
+                        logger.error("Failed to decompress payload of document with MessageId '"
+                                + event.getMessageId() + "', CorrelationId '"
+                                + event.getCorrelationId() + "'.",
+                            e);
+
+                        System.exit(ErrorCodes.CORRUPT_INPUT_JSON);
+                        return;
+                    }
+                } else {
+                    jsonText = event.getBodyAsString();
+                }
+
                 ObjectNode json;
                 try {
                     json = (ObjectNode) Configs.mapper.readTree(jsonText);
