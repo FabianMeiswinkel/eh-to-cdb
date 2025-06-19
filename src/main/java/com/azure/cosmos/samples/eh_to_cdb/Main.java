@@ -186,7 +186,7 @@ public class Main {
                     positionsContainer
                 );
 
-                threadFactory.newThread(processor, "partitionId").start();
+                threadFactory.newThread(processor, "EHProcessor-" + partitionId).start();
             }
 
             boolean isAppRunningInConsoleMode = Configs.isAppRunningInConsoleMode();
