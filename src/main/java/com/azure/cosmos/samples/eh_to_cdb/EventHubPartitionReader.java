@@ -169,6 +169,8 @@ public class EventHubPartitionReader implements Runnable {
                     pkDateFormatter.format(nanoEpochToInstant(messageTimestamp)),
                     String.valueOf((Math.abs(hash.asLong()) % 8) + 1));
 
+                logBadIdOrPkObject(json, rawId, pkValue);
+
                 json.put("pk", pkValue);
                 json.put("id", hashedId);
                 json.putIfAbsent("docType", new TextNode("TAQ"));
@@ -184,5 +186,12 @@ public class EventHubPartitionReader implements Runnable {
         }
 
         this.ehInputRecordsSink.emitComplete(emitFailureHandler);
+    }
+
+    private static void logBadIdOrPkObject(ObjectNode json, String id, String pkValue) {
+        if (pkValue == null || !pkValue.contains("|")) {
+            logger.warn("Invalid PK generated for document [{}]. PK: [{}], ID: [{}]",
+                json.toString(), pkValue, id);
+        }
     }
 }
